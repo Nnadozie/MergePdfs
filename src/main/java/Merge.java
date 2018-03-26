@@ -1,62 +1,101 @@
-package src.main.java;
-
+import com.itextpdf.text.pdf.PdfReader;
+import com.itextpdf.text.pdf.PdfStamper;
 import org.apache.pdfbox.multipdf.PDFMergerUtility;
 
+import javax.swing.*;
+import java.awt.event.ActionEvent;
 import java.io.*;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
+import java.awt.Dimension;
+import javax.swing.JButton;
+import javax.swing.JFileChooser;
+import javax.swing.JPanel;
+import javax.swing.filechooser.FileNameExtensionFilter;
+import java.awt.event.ActionListener;
+import java.io.File;
+import java.util.ArrayList;
 
-import static org.apache.pdfbox.io.MemoryUsageSetting.setupMainMemoryOnly;
+public class Merge extends JPanel implements ActionListener {
+    private JFileChooser fileChooser;
+    private FileNameExtensionFilter filter;
+    private JFrame frame;
+    private JButton openButton;
+    private File file;
+    private ArrayList<File> files;
+    int returnVal;
 
-public class Merge {
+    public Merge(){
+        files = new ArrayList<>();
+        frame = new JFrame("My GUI");
+        filter = new FileNameExtensionFilter("Pdf Files", "pdf");
+        fileChooser = new JFileChooser();
+        fileChooser.setFileFilter(filter);
+        openButton = new JButton("Select");
+
+        setPreferredSize(new Dimension(278, 179));
+        setLayout(null);
+
+        add(openButton);
+
+        openButton.setBounds(84, 145, 100, 25);
+    }
+
     public static void main(String[] args) {
         System.out.println("Hello world!");
         Merge merger = new Merge();
-        merger.mergePdfs("C:\\Users\\neoke\\Desktop\\MergePdfs\\src\\main\\java\\pdfs.txt");
+        merger.frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        merger.frame.getContentPane().add(merger);
+        merger.frame.pack();
+        merger.frame.setVisible(true);
+        merger.openButton.addActionListener(merger);
     }
 
-    public void mergePdfs(String fileName) {
-        // The name of the file to open.
-        //String fileName = "temp.txt";
-
-        // This will reference one line at a time
-        String line = null;
-
-        try {
-            // FileReader reads text files in the default encoding.
-            FileReader fileReader =
-                    new FileReader(fileName);
-
-            // Always wrap FileReader in BufferedReader.
-            BufferedReader bufferedReader =
-                    new BufferedReader(fileReader);
-
-            PDFMergerUtility ut = new PDFMergerUtility();
-            while((line = bufferedReader.readLine()) != null) {
-                System.out.println(line);
-                Path path = Paths.get(line);
-                System.out.println(Files.exists(path));
-                File file = new File(path.normalize().toString());
-                ut.addSource(file);
+    public void actionPerformed(ActionEvent e) {
+        if (e.getSource() == openButton) {
+            returnVal = fileChooser.showOpenDialog(null);
+            if (returnVal == JFileChooser.APPROVE_OPTION) {
+                file = fileChooser.getSelectedFile();
+                this.mergePdfs(file);
+                this.compressPdfs(file);
             }
-            // Always close files.
-            bufferedReader.close();
-            ut.setDestinationFileName("MergedFile");
-            //MemoryUsageSetting max = setupMainMemoryOnly(2048);
+        }
+    }
+
+    public void mergePdfs(File file) {
+        PDFMergerUtility ut = new PDFMergerUtility();
+        File temp = new File("MergedFile.pdf");
+        try {
+            ut.addSource(temp);
+        } catch (FileNotFoundException ex) {
+            //
+        }
+        try {
+            ut.addSource(file);
+            ut.setDestinationFileName(temp.toString());
             ut.mergeDocuments(null);
+        } catch (FileNotFoundException ex) {
+            ex.printStackTrace();
+        } catch(IOException ex) {
+            ex.printStackTrace();
         }
-        catch(FileNotFoundException ex) {
-            System.out.println(
-                    "Unable to open file '" +
-                            fileName + "'");
-        }
-        catch(IOException ex) {
-            System.out.println(
-                    "Error reading file '"
-                            + fileName + "'");
-            // Or we could just do this:
-            // ex.printStackTrace();
+
+    }
+
+    public void compressPdfs(File file) {
+        try {
+            PdfReader reader = new PdfReader(new FileInputStream(file.toString()));
+            PdfStamper stamper = new PdfStamper(reader, new FileOutputStream(file.toString()));
+            int total = reader.getNumberOfPages() + 1;
+            for (int i = 1; i < total; i++) {
+                reader.setPageContent(i + 1, reader.getPageContent(i + 1));
+            }
+            stamper.setFullCompression();
+            stamper.close();
+        } catch (FileNotFoundException ex) {
+            //
+        } catch (IOException ex) {
+            //
+        } catch (com.itextpdf.text.DocumentException ex) {
+            //
         }
     }
 }
